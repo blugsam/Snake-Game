@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 public class Snake : MonoBehaviour
 {
@@ -12,21 +10,34 @@ public class Snake : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private SnakeSettings settings;
     [SerializeField] private Transform segmentPrefab;
+    [SerializeField] private Transform eyesPrefab;
 
     [Header("References")]
     [SerializeField] private Board board;
 
+    //logic
     private List<Vector2Int> _segments;
+    private List<Vector2Int> _previousSegments;
+
+    //visuals
     private List<Transform> _segmentObjects;
-    private Vector2Int _direction = Vector2Int.right;
-    private Vector2Int _inputDirection;
-    private bool _shouldGrow = false;
+    private Transform _eyes;
     private SnakeSegmentFactory _factory;
     private SnakeSegmentPool _segmentPool;
 
+    //movement handle
+    private Vector2Int _direction = Vector2Int.right;
+    private Vector2Int _inputDirection;
+    private float _moveTimer;
+    private bool _shouldGrow = false;
+    private bool _isDead = false;
+
     private void Update()
     {
+        if (_isDead) return;
+
         HandleInput();
+        UpdateMovement();
     }
 
     public void Initialize()
@@ -34,15 +45,24 @@ public class Snake : MonoBehaviour
         _factory ??= new SnakeSegmentFactory(segmentPrefab);
         _segmentPool ??= new SnakeSegmentPool(_factory);
 
+        _isDead = false;
+        _moveTimer = 0f;
+        _shouldGrow = false;
+        _direction = Vector2Int.right;
+        _inputDirection = Vector2Int.right;
+
         _segments = new List<Vector2Int>();
         _segmentObjects = new List<Transform>();
-        _inputDirection = Vector2Int.right;
 
         int startX = Mathf.FloorToInt(board.WorldBounds.xMin) + 5;
         int startY = Mathf.FloorToInt(board.WorldBounds.center.y);
 
         for (int i = 0; i < settings.initialSize; i++)
+        {
             _segments.Add(new Vector2Int(startX - i, startY));
+        }
+
+        _previousSegments = new List<Vector2Int>(_segments);
 
         foreach (var pos in _segments)
         {
@@ -52,7 +72,11 @@ public class Snake : MonoBehaviour
             board.UpdateCell(pos, GridEntityType.Snake);
         }
 
-        InvokeRepeating(nameof(GameTick), 0f, settings.moveSpeed);
+        if (eyesPrefab != null)
+        {
+            _eyes = Instantiate(eyesPrefab);
+            UpdateEyes();
+        }
     }
 
     private void HandleInput()
@@ -75,15 +99,36 @@ public class Snake : MonoBehaviour
         }
     }
 
+    private void UpdateMovement()
+    {
+        _moveTimer += Time.deltaTime;
+
+        if (_moveTimer >= settings.moveSpeed)
+        {
+            _moveTimer -= settings.moveSpeed;
+            GameTick();
+        }
+
+        SyncVisualsSmoothly();
+    }
+
     private void GameTick()
     {
+        _previousSegments = new List<Vector2Int>(_segments);
+
+        bool directionChanged = _direction != _inputDirection;
         _direction = _inputDirection;
+
+        if (directionChanged)
+        {
+            UpdateEyes();
+        }
+
         Vector2Int newHeadPosition = _segments[0] + _direction;
 
         GridEntityType whatsNext = board.GetEntityTypeAt(newHeadPosition);
         if (whatsNext == GridEntityType.Wall ||
-           (whatsNext == GridEntityType.Snake &&
-             !(newHeadPosition == _segments[^1] && !_shouldGrow)))
+           (whatsNext == GridEntityType.Snake && !(newHeadPosition == _segments[^1])))
         {
             Die();
             return;
@@ -100,87 +145,85 @@ public class Snake : MonoBehaviour
 
     private void Move(Vector2Int newHead)
     {
-        Vector2Int? oldTail = _shouldGrow
-            ? (Vector2Int?)null
-            : _segments[^1];
-
         _segments.Insert(0, newHead);
+        board.UpdateCell(newHead, GridEntityType.Snake);
 
         if (_shouldGrow)
         {
-            var newSeg = _segmentPool.Get();
-            newSeg.position = (Vector2)newHead;
-            _segmentObjects.Insert(0, newSeg);
+            var newSegObj = _segmentPool.Get();
+            _segmentObjects.Insert(0, newSegObj);
             _shouldGrow = false;
         }
         else
         {
-            var tailObj = _segmentObjects[^1];
-            _segmentObjects.RemoveAt(_segmentObjects.Count - 1);
-
-            tailObj.position = (Vector2)newHead;
-            _segmentObjects.Insert(0, tailObj);
-
+            Vector2Int oldTail = _segments[^1];
             _segments.RemoveAt(_segments.Count - 1);
+            board.UpdateCell(oldTail, GridEntityType.Empty);
         }
 
-        if (oldTail.HasValue)
-            board.UpdateCell(oldTail.Value, GridEntityType.Empty);
+        UpdateEyes();
+    }
 
-        board.UpdateCell(newHead, GridEntityType.Snake);
+    private void UpdateEyes()
+    {
+        if (_eyes == null || _segmentObjects.Count == 0) return;
 
-        SyncVisuals();
-        ValidateState();
+        // 1. Привязываем глаза к объекту головы
+        _eyes.SetParent(_segmentObjects[0], false);
+        _eyes.localPosition = Vector3.zero; // Сбрасываем локальную позицию
+
+        // 2. Поворачиваем глаза в зависимости от направления
+        if (_direction == Vector2Int.up) _eyes.rotation = Quaternion.Euler(0, 0, 90);
+        else if (_direction == Vector2Int.down) _eyes.rotation = Quaternion.Euler(0, 0, -90);
+        else if (_direction == Vector2Int.left) _eyes.rotation = Quaternion.Euler(0, 0, 180);
+        else if (_direction == Vector2Int.right) _eyes.rotation = Quaternion.Euler(0, 0, 0);
+    }
+
+    private void SyncVisualsSmoothly()
+    {
+        float t = _moveTimer / settings.moveSpeed;
+
+        for (int i = 0; i < _segmentObjects.Count; i++)
+        {
+            Vector2 startPos, endPos;
+
+            if (i < _previousSegments.Count)
+            {
+                startPos = (Vector2)_previousSegments[i];
+                endPos = (Vector2)_segments[i];
+            }
+            else
+            {
+                startPos = (Vector2)_segments[i];
+                endPos = (Vector2)_segments[i];
+            }
+
+            _segmentObjects[i].position = Vector2.Lerp(startPos, endPos, t);
+        }
     }
 
     private void Die()
     {
-        CancelInvoke(nameof(GameTick));
-
-        Debug.Log($"Die: Returning {_segmentObjects.Count} segments to pool");
-
-        foreach (var seg in _segmentObjects)
-            _segmentPool.Return(seg);
-        _segmentObjects.Clear();
-        _segments.Clear();
-
+        if (_isDead) return;
+        _isDead = true;
         OnDied?.Invoke();
-    }
-
-    private void SyncVisuals()
-    {
-        for (int i = 0; i < _segments.Count; i++)
-            _segmentObjects[i].position = (Vector2)_segments[i];
     }
 
     public void ResetSnake()
     {
-        CancelInvoke(nameof(GameTick));
-
         foreach (var seg in _segmentObjects)
             _segmentPool.Return(seg);
 
         _segmentObjects.Clear();
-        _segments.Clear();
-        _shouldGrow = false;
-        _direction = Vector2Int.right;
-        _inputDirection = Vector2Int.right;
-    }
+        _segments?.Clear();
+        _previousSegments?.Clear();
 
-    [Conditional("UNITY_EDITOR")]
-    private void ValidateState()
-    {
-        //количество логических позиций и визуальных объектов должно совпадать
-        Debug.Assert(_segments.Count == _segmentObjects.Count,
-            $"Mismatch: segments({_segments.Count}) vs objects({_segmentObjects.Count})");
-
-        //все объекты должны быть активны и синхронизированы
-        for (int i = 0; i < _segments.Count; i++)
+        if (_eyes != null)
         {
-            Vector2Int pos = _segments[i];
-            Vector3 worldPos = _segmentObjects[i].position;
-            Debug.Assert((Vector2)worldPos == (Vector2)pos,
-                $"Segment #{i} at {worldPos} but _segments has {pos}");
+            Destroy(_eyes.gameObject);
+            _eyes = null;
         }
+
+        _isDead = true;
     }
 }
