@@ -55,7 +55,14 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        gameOverPanel.SetActive(false);
+        _score = 0;
+        UpdateScoreUI();
+
+        board.ResetBoard();
+        snake.ResetSnake();
+        snake.Initialize();
+        board.SpawnFood();
     }
 
     private void LoadHighScore()

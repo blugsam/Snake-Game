@@ -77,4 +77,23 @@ public class Board : MonoBehaviour
         _grid[FoodPosition] = GridEntityType.Food;
         _foodObject = Instantiate(foodPrefab, (Vector2)FoodPosition, Quaternion.identity);
     }
+
+    public void UpdateCell(Vector2Int pos, GridEntityType newType)
+    {
+        if (newType == GridEntityType.Empty)
+            _grid.Remove(pos);
+        else
+            _grid[pos] = newType;
+    }
+
+    public void ResetBoard()
+    {
+        _grid.Clear();
+
+        if (_foodObject != null)
+        {
+            Destroy(_foodObject);
+            _foodObject = null;
+        }
+    }
 }
