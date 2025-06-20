@@ -25,6 +25,7 @@ public class Snake : MonoBehaviour
     private Transform _eyes;
     private SnakeSegmentFactory _factory;
     private SnakeSegmentPool _segmentPool;
+    private bool _isInitialized = false;
 
     //movement handle
     private Vector2Int _direction = Vector2Int.right;
@@ -37,7 +38,7 @@ public class Snake : MonoBehaviour
 
     private void Update()
     {
-        if (_isDead) return;
+        if (!_isInitialized || _isDead) return;
 
         HandleInput();
         UpdateMovement();
@@ -80,6 +81,8 @@ public class Snake : MonoBehaviour
             _eyes = Instantiate(eyesPrefab);
             UpdateEyes();
         }
+
+        _isInitialized = true;
     }
 
     private void HandleInput()
@@ -139,14 +142,6 @@ public class Snake : MonoBehaviour
         Vector2Int newHead = _segments[0] + _direction;
 
         _previousSegments = new List<Vector2Int>(_segments);
-
-        //bool directionChanged = _direction != _inputDirection;
-        //_direction = _inputDirection;
-
-        //if (directionChanged)
-        //{
-        //    UpdateEyes();
-        //}
 
         Vector2Int newHeadPosition = _segments[0] + _direction;
 
@@ -236,10 +231,19 @@ public class Snake : MonoBehaviour
 
     public void ResetSnake()
     {
-        foreach (var seg in _segmentObjects)
-            _segmentPool.Return(seg);
+        _isInitialized = false;
+        _isDead = true;
 
-        _segmentObjects.Clear();
+        _inputQueue.Clear();
+
+        if (_segmentObjects != null)
+        {
+            foreach (var seg in _segmentObjects)
+                _segmentPool.Return(seg);
+
+            _segmentObjects.Clear();
+        }
+
         _segments?.Clear();
         _previousSegments?.Clear();
 
@@ -248,7 +252,5 @@ public class Snake : MonoBehaviour
             Destroy(_eyes.gameObject);
             _eyes = null;
         }
-
-        _isDead = true;
     }
 }
