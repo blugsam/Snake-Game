@@ -361,3 +361,25 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/.vsconfig
+/Assembly-CSharp.csproj
+/Assets/DefaultVolumeProfile.asset
+/Assets/InputSystem_Actions.inputactions
+/Assets/Prefabs
+/Assets/Scenes
+/Assets/Settings
+/Assets/Settings/Lit2DSceneTemplate.scenetemplate
+/Assets/Settings/Renderer2D.asset
+/Assets/Settings/Scenes
+/Assets/Settings/Scenes/URP2DSceneTemplate.unity
+/Assets/Settings/UniversalRP.asset
+/Assets/SnakeSettings.asset
+/Assets/Sprites
+/Assets/Square.png
+/Assets/TextMesh Pro
+/Assets/UniversalRenderPipelineGlobalSettings.asset
+/Library
+/ProjectSettings
+/Snake Game.sln
+/Temp
+/UserSettings
