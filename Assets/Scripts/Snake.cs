@@ -168,15 +168,16 @@ public class Snake : MonoBehaviour
     {
         if (_eyes == null || _segmentObjects.Count == 0) return;
 
-        // 1. Привязываем глаза к объекту головы
         _eyes.SetParent(_segmentObjects[0], false);
-        _eyes.localPosition = Vector3.zero; // Сбрасываем локальную позицию
+        _eyes.localPosition = Vector3.zero;
 
-        // 2. Поворачиваем глаза в зависимости от направления
-        if (_direction == Vector2Int.up) _eyes.rotation = Quaternion.Euler(0, 0, 90);
-        else if (_direction == Vector2Int.down) _eyes.rotation = Quaternion.Euler(0, 0, -90);
-        else if (_direction == Vector2Int.left) _eyes.rotation = Quaternion.Euler(0, 0, 180);
-        else if (_direction == Vector2Int.right) _eyes.rotation = Quaternion.Euler(0, 0, 0);
+        _eyes.rotation = Quaternion.Euler(0, 0, _direction switch
+        {
+            Vector2Int d when d == Vector2Int.up => 90,
+            Vector2Int d when d == Vector2Int.down => -90,
+            Vector2Int d when d == Vector2Int.left => 180,
+            _ => 0,
+        });
     }
 
     private void SyncVisualsSmoothly()
