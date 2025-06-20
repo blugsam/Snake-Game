@@ -18,10 +18,11 @@ public class Snake : MonoBehaviour
 
     private List<Vector2Int> _segments;
     private List<Transform> _segmentObjects;
-    private Queue<Transform> _segmentPool;
     private Vector2Int _direction = Vector2Int.right;
     private Vector2Int _inputDirection;
     private bool _shouldGrow = false;
+    private SnakeSegmentFactory _factory;
+    private SnakeSegmentPool _segmentPool;
 
     private void Update()
     {
@@ -30,7 +31,8 @@ public class Snake : MonoBehaviour
 
     public void Initialize()
     {
-        _segmentPool = new Queue<Transform>();
+        _factory ??= new SnakeSegmentFactory(segmentPrefab);
+        _segmentPool ??= new SnakeSegmentPool(_factory);
 
         _segments = new List<Vector2Int>();
         _segmentObjects = new List<Transform>();
@@ -44,7 +46,7 @@ public class Snake : MonoBehaviour
 
         foreach (var pos in _segments)
         {
-            var segObj = GetSegmentFromPool();
+            var segObj = _segmentPool.Get();
             segObj.position = (Vector2)pos;
             _segmentObjects.Add(segObj);
             board.UpdateCell(pos, GridEntityType.Snake);
@@ -96,25 +98,6 @@ public class Snake : MonoBehaviour
         Move(newHeadPosition);
     }
 
-    private Transform GetSegmentFromPool()
-    {
-        if (_segmentPool.Count > 0)
-        {
-            Debug.Log($"Reusing segment, pool size before dequeue: {_segmentPool.Count}");
-            var seg = _segmentPool.Dequeue();
-            seg.gameObject.SetActive(true);
-            return seg;
-        }
-        Debug.Log("Pool empty => Instantiate new segment");
-        return Instantiate(segmentPrefab);
-    }
-
-    private void ReturnSegmentToPool(Transform segment)
-    {
-        segment.gameObject.SetActive(false);
-        _segmentPool.Enqueue(segment);
-    }
-
     private void Move(Vector2Int newHead)
     {
         Vector2Int? oldTail = _shouldGrow
@@ -125,7 +108,7 @@ public class Snake : MonoBehaviour
 
         if (_shouldGrow)
         {
-            var newSeg = GetSegmentFromPool();
+            var newSeg = _segmentPool.Get();
             newSeg.position = (Vector2)newHead;
             _segmentObjects.Insert(0, newSeg);
             _shouldGrow = false;
@@ -157,7 +140,7 @@ public class Snake : MonoBehaviour
         Debug.Log($"Die: Returning {_segmentObjects.Count} segments to pool");
 
         foreach (var seg in _segmentObjects)
-            ReturnSegmentToPool(seg);
+            _segmentPool.Return(seg);
         _segmentObjects.Clear();
         _segments.Clear();
 
@@ -175,7 +158,7 @@ public class Snake : MonoBehaviour
         CancelInvoke(nameof(GameTick));
 
         foreach (var seg in _segmentObjects)
-            ReturnSegmentToPool(seg);
+            _segmentPool.Return(seg);
 
         _segmentObjects.Clear();
         _segments.Clear();
