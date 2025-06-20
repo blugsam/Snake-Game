@@ -6,7 +6,7 @@ public class GameManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Board board;
-    [SerializeField] private Snake snake;
+    [SerializeField] private SnakeController snakeController;
     [SerializeField] private RectTransform boardPanelRect;
 
     [Header("UI Panels")]
@@ -24,43 +24,80 @@ public class GameManager : MonoBehaviour
 
     private int _score;
     private int _highScore;
-    private bool _isGameActive = false;
 
     private void Awake()
     {
         _audioSource = GetComponent<AudioSource>();
 
-        snake.OnAteFood += HandleFoodEaten;
-        snake.OnDied += HandleGameOver;
+        snakeController.OnAteFood += HandleFoodEaten;
+        snakeController.OnDied += HandleGameOver;
     }
 
     private void Start()
     {
+        confirmationPanel.SetActive(false);
         ShowMenu(true);
     }
 
-    public void OnPlayButton()
+    private void StartGame()
     {
-        snake.ResetSnake();
-        board.ResetBoard();
-
         menuPanel.SetActive(false);
         confirmationPanel.SetActive(false);
-        _isGameActive = true;
+
+        board.ResetBoard();
+        Rect worldBounds = GetWorldBounds(boardPanelRect);
+        board.Initialize(worldBounds);
 
         _score = 0;
         UpdateScoreUI();
 
-        Rect worldBounds = GetWorldBounds(boardPanelRect);
-        board.Initialize(worldBounds);
-        snake.Initialize();
+        snakeController.StartNewGame();
         board.SpawnFood();
+    }
+
+    private void StopGame()
+    {
+        snakeController.StopGame();
+
+        if (_score > _highScore)
+        {
+            _highScore = _score;
+            SaveHighScore();
+        }
+
+        ShowMenu(false);
+    }
+
+    public void OnPlayButton()
+    {
+        StartGame();
+    }
+
+    public void OnResetHighScoreButton()
+    {
+        confirmationPanel.SetActive(true);
+        menuPanel.SetActive(false);
+    }
+
+    public void OnConfirmResetButton()
+    {
+        _highScore = 0;
+        PlayerPrefs.SetInt("HighScore", 0);
+        PlayerPrefs.Save();
+        UpdateScoreUI();
+
+        menuPanel.SetActive(true);
+        confirmationPanel.SetActive(false);
+    }
+
+    public void OnCancelResetButton()
+    {
+        menuPanel.SetActive(true);
+        confirmationPanel.SetActive(false);
     }
 
     private void HandleFoodEaten()
     {
-        if (!_isGameActive) return;
-
         if (biteSoundClip != null)
         {
             _audioSource.PlayOneShot(biteSoundClip);
@@ -73,27 +110,16 @@ public class GameManager : MonoBehaviour
 
     private void HandleGameOver()
     {
-        if (!_isGameActive) return;
-
-        _isGameActive = false;
-
-        if (_score > _highScore)
-        {
-            _highScore = _score;
-            SaveHighScore();
-        }
-
-        ShowMenu(false);
+        StopGame();
     }
 
     private void ShowMenu(bool isFirstLaunch)
     {
         menuPanel.SetActive(true);
-        confirmationPanel.SetActive(false);
 
         if (isFirstLaunch)
         {
-            menuMessage.text = "SNAKE GAME";
+            menuMessage.text = "SNAKE";
         }
         else
         {
@@ -116,37 +142,8 @@ public class GameManager : MonoBehaviour
 
     private void UpdateScoreUI()
     {
-        if (scoreText != null)
-        {
-            scoreText.text = _score.ToString();
-        }
-        if (highScoreText != null)
-        {
-            highScoreText.text = _highScore.ToString();
-        }
-    }
-
-    public void OnResetHighScoreButton()
-    {
-        confirmationPanel.SetActive(true);
-        menuPanel.SetActive(false);
-    }
-
-    public void OnConfirmResetButton()
-    {
-        _highScore = 0;
-        PlayerPrefs.SetInt("HighScore", 0);
-        PlayerPrefs.Save();
-        UpdateScoreUI();
-
-        confirmationPanel.SetActive(false);
-        menuPanel.SetActive(true);
-    }
-
-    public void OnCancelResetButton()
-    {
-        menuPanel.SetActive(true);
-        confirmationPanel.SetActive(false);
+        scoreText.text = _score.ToString();
+        highScoreText.text = _highScore.ToString();
     }
 
     private Rect GetWorldBounds(RectTransform rectTransform)
@@ -164,10 +161,10 @@ public class GameManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (snake != null)
+        if (snakeController != null)
         {
-            snake.OnAteFood -= HandleFoodEaten;
-            snake.OnDied -= HandleGameOver;
+            snakeController.OnAteFood -= HandleFoodEaten;
+            snakeController.OnDied -= HandleGameOver;
         }
     }
 }
