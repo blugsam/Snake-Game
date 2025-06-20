@@ -1,26 +1,32 @@
 using TMPro;
 using UnityEngine;
 
+[RequireComponent(typeof(AudioSource))]
 public class GameManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Board board;
     [SerializeField] private Snake snake;
     [SerializeField] private RectTransform boardPanelRect;
+
     [Header("UI")]
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text highScoreText;
     [SerializeField] private GameObject gameOverPanel;
+
+    [Header("Audio")]
+    [SerializeField] private AudioClip biteSoundClip;
+    private AudioSource _audioSource;
 
     private int _score;
     private int _highScore;
 
     private void Awake()
     {
+        _audioSource = GetComponent<AudioSource>();
+
         Rect worldBounds = GetWorldBounds(boardPanelRect);
-
         board.Initialize(worldBounds);
-
         snake.Initialize();
 
         snake.OnAteFood += HandleFoodEaten;
@@ -37,6 +43,11 @@ public class GameManager : MonoBehaviour
 
     private void HandleFoodEaten()
     {
+        if (biteSoundClip != null)
+        {
+            _audioSource.PlayOneShot(biteSoundClip);
+        }
+
         _score++;
         UpdateScoreUI();
         board.SpawnFood();

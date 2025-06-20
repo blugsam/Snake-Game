@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Snake : MonoBehaviour
@@ -28,6 +29,8 @@ public class Snake : MonoBehaviour
     //movement handle
     private Vector2Int _direction = Vector2Int.right;
     private Vector2Int _inputDirection;
+    private const int MaxQueuedInputs = 2;
+    private Queue<Vector2Int> _inputQueue = new Queue<Vector2Int>();
     private float _moveTimer;
     private bool _shouldGrow = false;
     private bool _isDead = false;
@@ -81,22 +84,38 @@ public class Snake : MonoBehaviour
 
     private void HandleInput()
     {
+        Vector2Int candidate = Vector2Int.zero;
+
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
         {
-            if (_direction != Vector2Int.down) _inputDirection = Vector2Int.up;
+            candidate = Vector2Int.up;
         }
         else if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow))
         {
-            if (_direction != Vector2Int.up) _inputDirection = Vector2Int.down;
+            candidate = Vector2Int.down;
         }
         else if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            if (_direction != Vector2Int.right) _inputDirection = Vector2Int.left;
+            candidate = Vector2Int.left;
         }
         else if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
         {
-            if (_direction != Vector2Int.left) _inputDirection = Vector2Int.right;
+            candidate = Vector2Int.right;
         }
+        else
+        {
+            return;
+        }
+
+        Vector2Int last = _inputQueue.Count > 0
+            ? _inputQueue.Last()
+            : _direction;
+
+        if (candidate == last || candidate + last == Vector2Int.zero)
+            return;
+
+        if (_inputQueue.Count < MaxQueuedInputs)
+            _inputQueue.Enqueue(candidate);
     }
 
     private void UpdateMovement()
@@ -114,15 +133,20 @@ public class Snake : MonoBehaviour
 
     private void GameTick()
     {
+        if (_inputQueue.Count > 0)
+            _direction = _inputQueue.Dequeue();
+
+        Vector2Int newHead = _segments[0] + _direction;
+
         _previousSegments = new List<Vector2Int>(_segments);
 
-        bool directionChanged = _direction != _inputDirection;
-        _direction = _inputDirection;
+        //bool directionChanged = _direction != _inputDirection;
+        //_direction = _inputDirection;
 
-        if (directionChanged)
-        {
-            UpdateEyes();
-        }
+        //if (directionChanged)
+        //{
+        //    UpdateEyes();
+        //}
 
         Vector2Int newHeadPosition = _segments[0] + _direction;
 
