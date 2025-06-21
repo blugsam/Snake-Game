@@ -25,6 +25,12 @@ public class GameManager : MonoBehaviour
     private int _score;
     private int _highScore;
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+            QuitTheGame();
+    }
+
     private void Awake()
     {
         _audioSource = GetComponent<AudioSource>();
@@ -119,7 +125,7 @@ public class GameManager : MonoBehaviour
 
         if (isFirstLaunch)
         {
-            menuMessage.text = "SNAKE";
+            menuMessage.text = "SNAKE GAME";
         }
         else
         {
@@ -166,5 +172,10 @@ public class GameManager : MonoBehaviour
             snakeController.OnAteFood -= HandleFoodEaten;
             snakeController.OnDied -= HandleGameOver;
         }
+    }
+
+    private void QuitTheGame()
+    {
+        Application.Quit();
     }
 }
